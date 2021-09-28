@@ -1,0 +1,43 @@
+name: MSBuild
+
+on:
+  push:
+    branches:
+      - windows-build
+    tags:
+      - '*'
+
+jobs:
+  build:
+    name: 'windows-latest build of ${{ matrix.arch }}'
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x86, x64]
+        include:
+          - {arch: x86, bit: 32}
+          - {arch: x64, bit: 64}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Visual Studio shell
+        uses: egor-tensin/vs-shell@v2
+        with:
+          arch: '${{ matrix.arch }}'
+      - name: Build
+        run: |
+          cd win32
+          build-tcc.bat -c cl -t ${{ matrix.bit }} -i tcc-prebuild-${{ matrix.arch }}
+        shell: cmd
+      - name: Prepare release files
+        run: |
+          7z a -tzip tcc-prebuild-${{ matrix.arch }}.zip -r ./win32/tcc-prebuild-${{ matrix.arch }}
+        shell: bash
+      - name: Upload release files
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: tcc-prebuild-${{ matrix.arch }}.zip
+          tags: true
+          draft: false
